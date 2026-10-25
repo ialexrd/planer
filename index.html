@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+<title>Мой планер</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: dark rounded sidebar on the left, cream workspace on the right; the schedule is a week grid with a time column and absolutely placed event cards */
+:root{
+  --bg:#f6f0e1; --surface:#fbf7ee; --ink:#151412; --muted:#6f6858; --line:#e4dbc6;
+  --side:#121110; --side-ink:#efe9dc; --side-muted:#8d877b;
+  --pink:#f2b6d3; --pink-ink:#7a2152;
+  --c-sales:#f4d35e; --c-blog:#b5c9ef; --c-work:#e9e1cf; --c-life:#f6d9e7;
+  --card-ink:#151412; --card-muted:#4f4a3f;
+  --today-bg:#151412; --today-fg:#fbf7ee;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --px:80px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1a1814; --surface:#24211b; --ink:#f1ebdd; --muted:#a59d8c; --line:#37322a;
+  --side:#0c0b0a; --side-ink:#efe9dc; --side-muted:#8d877b;
+  --pink:#e58fbb; --pink-ink:#2a0c1c;
+  --c-sales:#5a4b18; --c-blog:#2c3b59; --c-work:#332e25; --c-life:#4a2a3a;
+  --card-ink:#f3eddf; --card-muted:#c3baa7;
+  --today-bg:#f1ebdd; --today-fg:#1a1814; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1814; --surface:#24211b; --ink:#f1ebdd; --muted:#a59d8c; --line:#37322a;
+  --side:#0c0b0a; --side-ink:#efe9dc; --side-muted:#8d877b;
+  --pink:#e58fbb; --pink-ink:#2a0c1c;
+  --c-sales:#5a4b18; --c-blog:#2c3b59; --c-work:#332e25; --c-life:#4a2a3a;
+  --card-ink:#f3eddf; --card-muted:#c3baa7;
+  --today-bg:#f1ebdd; --today-fg:#1a1814; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+.num,.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+p{margin:0}
+
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);gap:28px;padding-block:20px 40px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));max-width:1500px;margin:0 auto}
+
+/* sidebar */
+.side{background:var(--side);color:var(--side-ink);border-radius:22px;padding:28px 16px;display:flex;flex-direction:column;gap:22px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);height:calc(100vh - 40px);max-height:880px;overflow:auto}
+.logo{font-weight:600;font-size:26px;letter-spacing:-.03em;padding-inline:12px;display:flex;align-items:center;gap:8px}
+.logo i{width:10px;height:10px;border-radius:50%;background:var(--pink);display:inline-block}
+.side h4{margin:0 0 6px;padding-inline:12px;font-size:12px;font-weight:500;color:var(--side-muted)}
+.side nav{display:grid;gap:2px}
+.side nav button{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--side-ink);padding:9px 12px;border-radius:10px;cursor:pointer;text-align:left;font-size:14px;position:relative}
+.side nav button:hover{background:#ffffff12}
+.side nav button[aria-current="page"]{color:var(--pink)}
+.side nav button[aria-current="page"]::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--pink)}
+.side svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.side .foot{margin-top:auto;padding-inline:12px;font-size:12px;color:var(--side-muted)}
+
+/* top */
+.main{min-width:0;display:grid;gap:22px;align-content:start}
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between}
+.top h1{margin:0;font-size:clamp(26px,3.4vw,38px);font-weight:600;letter-spacing:-.03em;line-height:1.1;text-wrap:balance}
+.top .sub{color:var(--muted);margin-top:6px}
+.acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:999px;padding:10px 18px;background:var(--today-bg);color:var(--today-fg);font-weight:500;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:none;display:grid;place-items:center;cursor:pointer}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.money-chip{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 6px;cursor:pointer}
+.money-chip b{background:var(--pink);color:var(--pink-ink);border-radius:999px;padding:4px 10px;font-weight:600}
+
+.bar2{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.range{display:flex;align-items:center;gap:6px}
+.range .pill{background:var(--today-bg);color:var(--today-fg);border-radius:999px;padding:8px 16px;font-weight:500;min-width:150px;text-align:center}
+.seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;border-radius:999px;padding:6px 14px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--today-bg);color:var(--today-fg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:4px;display:inline-block}
+
+/* week grid */
+.calwrap{overflow-x:auto;padding-bottom:6px}
+.calin{min-width:calc(56px + var(--cols) * 128px)}
+.calin.one{min-width:0}
+.cal{display:grid;grid-template-columns:56px repeat(var(--cols),minmax(0,1fr));column-gap:8px}
+.calb{position:relative}
+.dh{background:var(--surface);border-radius:14px;padding:8px 6px;text-align:center;display:grid;gap:0;cursor:pointer;border:0;margin-bottom:12px}
+.dh small{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.dh b{font-weight:500;font-size:15px}
+.dh.today{background:var(--today-bg);color:var(--today-fg)}
+.dh.today small{color:inherit;opacity:.75}
+.dh.wkend b,.dh.wkend small{color:#c0628f}
+.dh.today.wkend b,.dh.today.wkend small{color:var(--today-fg)}
+.corner{font-size:12px;color:var(--muted);text-align:center;padding-top:8px;line-height:1.3}
+.corner b{display:block;color:var(--ink);font-weight:500}
+.times{position:relative;height:calc(var(--hours) * var(--px))}
+.times span{position:absolute;right:6px;transform:translateY(-50%);font:500 11px var(--f-mono);color:var(--muted)}
+.col{position:relative;height:calc(var(--hours) * var(--px));border-radius:16px;background:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--px) - 1px),var(--line) calc(var(--px) - 1px),var(--line) var(--px))}
+.col.today{background-color:color-mix(in srgb,var(--surface) 70%,transparent)}
+.now{position:absolute;left:0;right:0;height:0;border-top:1.5px dashed var(--muted);z-index:3;pointer-events:none}
+.now em{position:absolute;left:4px;top:-10px;font:600 11px var(--f-mono);font-style:normal;background:var(--pink);color:var(--pink-ink);border-radius:6px;padding:1px 6px}
+
+.ev{position:absolute;left:3px;right:3px;border-radius:14px;padding:8px 10px;overflow:hidden;color:var(--card-ink);display:flex;flex-direction:column;gap:2px;border:1px solid transparent}
+.ev.sales{background:var(--c-sales)}
+.ev.blog{background:var(--c-blog)}
+.ev.work{background:var(--c-work);border-color:var(--line)}
+.ev.life{background:var(--c-life)}
+.ev .hd{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.ev .ic{width:24px;height:24px;border-radius:50%;background:var(--pink);color:var(--pink-ink);display:grid;place-items:center;flex:none}
+.ev.blog .ic{background:#ffffffaa;color:#203a6b}
+.ev .ic svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ev .t{font-weight:600;font-size:13px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ev.tall .t{-webkit-line-clamp:3}
+.ev .m{font-size:12px;color:var(--card-muted);line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ev .hd .tm{flex:1}
+.ev .tm{font:500 11px var(--f-mono);color:var(--card-muted)}
+.ev.short{flex-direction:row;align-items:center;padding:4px 8px;gap:8px}
+.ev.short .ic{width:20px;height:20px}
+.ev.short .hd{flex:1;min-width:0}
+.ev.short .t{min-width:0;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.ev.short .m{display:none}
+.ev.short .tm{display:none}
+.done-btn{width:22px;height:22px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--card-ink) 45%,transparent);background:none;cursor:pointer;display:grid;place-items:center;flex:none;padding:0;color:var(--card-ink)}
+.done-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.6;opacity:0}
+.ev.done{opacity:.55}
+.ev.done .t{text-decoration:line-through}
+.ev.done .done-btn{background:var(--card-ink);color:var(--surface);border-color:var(--card-ink)}
+.ev.done .done-btn svg{opacity:1}
+.del{border:0;background:none;color:var(--card-muted);cursor:pointer;font-size:14px;padding:0 2px}
+
+.empty{position:absolute;left:72px;right:16px;top:40px;background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:18px;text-align:center;color:var(--muted);z-index:2}
+
+/* day view side */
+.dayview{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.card{background:var(--surface);border-radius:20px;padding:20px;display:grid;gap:12px;min-width:0}
+.card h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.card h3{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+
+/* month */
+.month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.month .wd{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:0 6px}
+.mc{background:var(--surface);border-radius:14px;min-height:108px;padding:8px;display:flex;flex-direction:column;gap:4px;border:0;text-align:left;cursor:pointer;min-width:0}
+.mc.out{opacity:.4}
+.mc .d{font-weight:500}
+.mc.today .d{background:var(--today-bg);color:var(--today-fg);border-radius:999px;padding:0 8px;align-self:flex-start}
+.mc .chip{font-size:11px;border-radius:6px;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--card-ink)}
+.mc .chip.sales{background:var(--c-sales)}.mc .chip.blog{background:var(--c-blog)}.mc .chip.work{background:var(--c-work)}.mc .chip.life{background:var(--c-life)}
+.mc .more{font-size:11px;color:var(--muted)}
+
+/* other views */
+.view{display:grid;gap:18px}
+.panel{background:var(--surface);border-radius:20px;padding:20px;display:grid;gap:12px;min-width:0}
+.view h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.view h3{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.money{display:grid;gap:10px}
+.money .big{font-size:34px;font-weight:600;letter-spacing:-.03em}
+.barx{height:12px;background:var(--c-work);border-radius:999px;overflow:hidden}
+.barx i{display:block;height:100%;background:var(--c-sales);border-radius:999px;width:0;transition:width .4s}
+:root .barx i{background:#e9bf2f}
+.ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.money label{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted)}
+.money input{font:500 15px var(--f-mono);width:140px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:var(--bg)}
+.prio{display:grid;gap:4px;list-style:none;margin:0;padding:0;counter-reset:p}
+.prio li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.prio li:first-child{border-top:0}
+.prio li::before{counter-increment:p;content:counter(p);font:600 14px var(--f-mono);color:var(--muted);padding-top:1px}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;color:var(--card-ink)}
+.pill.hi{background:var(--c-sales)}
+.pill.mid{background:var(--c-blog)}
+.pill.lo{background:var(--c-work)}
+.check{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.check label{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;padding:8px 6px;border-radius:10px;cursor:pointer}
+.check label:hover{background:var(--bg)}
+.check input{width:18px;height:18px;margin:2px 0 0;accent-color:#c0628f}
+.check input:checked+span{color:var(--muted);text-decoration:line-through}
+.progress{font-size:13px;color:var(--muted)}
+.funnel{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.funnel div{background:var(--bg);border-radius:14px;padding:12px;display:grid;gap:2px}
+.funnel .v{font:600 24px var(--f-body)}
+.funnel .k{font-size:13px;color:var(--muted)}
+.tpl{background:var(--bg);border:1px dashed var(--line);border-radius:14px;padding:14px;white-space:pre-wrap;font-size:14px;user-select:text}
+.panel .btn{justify-self:start}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.tablewrap{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;border-top:0}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
+.note{background:var(--c-sales);color:var(--card-ink);border-radius:14px;padding:12px 16px}
+
+/* add form */
+.sheet[hidden]{display:none}
+.sheet{position:fixed;inset:0;background:#0007;display:grid;place-items:center;z-index:20;padding:16px}
+.sheet form{background:var(--surface);border-radius:22px;padding:22px;display:grid;gap:12px;width:min(420px,100%)}
+.sheet h2{margin:0;font-size:18px;font-weight:600}
+.sheet label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.sheet input,.sheet select{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:9px 12px;color:var(--ink)}
+.sheet .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.sheet .err{color:#c0392b;font-size:13px}
+
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr);padding-top:12px}
+  .side{position:static;height:auto;max-height:none;flex-direction:row;align-items:center;padding:10px 12px;border-radius:18px;gap:10px;overflow-x:auto}
+  .side h4,.side .foot{display:none}
+  .logo{font-size:20px;padding-inline:6px}
+  .side nav{display:flex}
+  .side nav button{white-space:nowrap;padding:8px 10px}
+  .side nav button[aria-current="page"]::before{left:10px;right:10px;top:auto;bottom:2px;width:auto;height:2px}
+  .dayview{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .mc{min-height:64px;padding:5px}
+  .mc .chip{font-size:0;height:6px;padding:0}
+  .money-chip span{display:none}
+}
+@media (prefers-reduced-motion:reduce){.barx i{transition:none}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.5 3.2-5.5 6.5-5.5s5.9 2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c2.4 0 4 1.5 4.5 4"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-9 6-14 15-14 0 9-5 15-14 15"/><path d="M5 19l8-8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="side">
+    <div class="logo">планер<i></i></div>
+    <div>
+      <h4>Главное</h4>
+      <nav aria-label="Разделы">
+        <button data-view="schedule"><svg><use href="#i-cal"/></svg>Расписание</button>
+        <button data-view="overview"><svg><use href="#i-grid"/></svg>Обзор и доход</button>
+        <button data-view="clients"><svg><use href="#i-users"/></svg>Клиенты</button>
+        <button data-view="blog"><svg><use href="#i-play"/></svg>Блог</button>
+        <button data-view="goals"><svg><use href="#i-target"/></svg>Цели</button>
+        <button data-view="cleaning"><svg><use href="#i-spark"/></svg>Химчистка</button>
+      </nav>
+    </div>
+    <div class="foot">Калининград<br>Сайты и CRM, блог, рассылки</div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div>
+        <h1 id="greet">Добрый день, Алексей</h1>
+        <p class="sub" id="focus">Фокус недели: первые клиенты на сайты и CRM</p>
+      </div>
+      <div class="acts">
+        <button class="money-chip" id="moneyChip" type="button"><b class="num" id="moneyChipVal">0 ₽</b><span class="muted">из 150 000 за месяц</span></button>
+        <button class="btn" id="addBtn" type="button">Добавить дело</button>
+      </div>
+    </div>
+
+<section class="view" id="schedule">
+  <div class="bar2">
+    <div class="range">
+      <button class="icon-btn" id="prev" type="button" aria-label="Назад"><svg><use href="#i-left"/></svg></button>
+      <span class="pill" id="rangeLabel">19–25 октября</span>
+      <button class="icon-btn" id="next" type="button" aria-label="Вперёд"><svg><use href="#i-right"/></svg></button>
+      <button class="btn ghost" id="toToday" type="button">Сегодня</button>
+    </div>
+    <div class="seg" role="group" aria-label="Вид">
+      <button data-mode="day" aria-pressed="false">День</button>
+      <button data-mode="week" aria-pressed="true">Неделя</button>
+      <button data-mode="month" aria-pressed="false">Месяц</button>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--c-sales)"></i>Клиенты и рассылки</span>
+    <span><i style="background:var(--c-blog)"></i>Блог</span>
+    <span><i style="background:var(--c-work);outline:1px solid var(--line)"></i>Работа и развитие</span>
+    <span><i style="background:var(--c-life)"></i>Жизнь и спорт</span>
+    <span class="muted">Кружок на карточке отмечает дело сделанным</span>
+  </div>
+  <div id="calHost"></div>
+</section>
+
+<!-- ОБЗОР -->
+<section class="view" id="overview" hidden>
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">
+      <h2>Цели недели 26 октября – 1 ноября</h2>
+      <span class="progress" data-progress="w44"></span>
+    </div>
+    <ul class="check" data-list="w44">
+      <li><label><input type="checkbox" id="w44-1"><span>150 сообщений клинингу Питера, по 30 в будни, пока база не закончится</span></label></li>
+      <li><label><input type="checkbox" id="w44-2"><span>Сайт химчистки: структура и главная по гайду SEO-завода</span></label></li>
+      <li><label><input type="checkbox" id="w44-3"><span>CRM: интеграции с Telegram и ВК (MAX на следующей неделе)</span></label></li>
+      <li><label><input type="checkbox" id="w44-4"><span>Доработать сайт-портфолио</span></label></li>
+      <li><label><input type="checkbox" id="w44-5"><span>Первая версия ИИ-помощника для планера</span></label></li>
+      <li><label><input type="checkbox" id="w44-6"><span>Higgsfield: первые реалистичные фото, потом Kling</span></label></li>
+      <li><label><input type="checkbox" id="w44-7"><span>2 урока английского с женой по 30 минут</span></label></li>
+      <li><label><input type="checkbox" id="w44-8"><span>Тренировки 3 раза: пн, ср, пт</span></label></li>
+      <li><label><input type="checkbox" id="w44-9"><span>Пылесос: болт выкручен или пылесос в мастерской</span></label></li>
+      <li><label><input type="checkbox" id="w44-10"><span>Вешалки для полотенец куплены и прикручены</span></label></li>
+      <li><label><input type="checkbox" id="w44-11"><span>Каждый вечер YouTube вместо сериала</span></label></li>
+</ul>
+    <p class="muted">В базе Питера 341 компания, около 40 уже получили сообщение. При 30 в день база закончится примерно к 6 ноября, дальше Москва. Всё ещё ждут своей очереди: рассылка друзьям во ВК, оформление Instagram, пакеты с ценами.</p>
+  </div>
+  <div class="panel money">
+    <h3>Доход в этом месяце</h3>
+    <div class="big num" id="earnedBig">0 ₽</div>
+    <div class="barx" aria-hidden="true"><i id="earnedBar"></i></div>
+    <div class="ticks num"><span>0</span><span>150 000</span><span>200 000</span><span>300 000</span></div>
+    <label for="earned">Заработано, ₽: <input id="earned" type="number" min="0" step="1000" value="0" inputmode="numeric"></label>
+    <p class="muted">Цель года: стабильно от 150 000 ₽ в месяц, затем 200 000 и 300 000.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Приоритеты</h2>
+    <ol class="prio">
+      <li><div><b>Сайты и CRM</b><br><span class="muted">Главный источник дохода. Пакеты, кейсы, продажи.</span></div><span class="pill hi">Главное</span></li>
+      <li><div><b>Холодные рассылки</b><br><span class="muted">20 сообщений в день по базам разных городов: Калининград, Санкт-Петербург, Москва. В первую очередь CRM для клининга и детейлинга. Плюс письма на почту и рассылка друзьям во ВК.</span></div><span class="pill hi">Главное</span></li>
+      <li><div><b>Блог</b><br><span class="muted">Instagram рилсы про разработку, YouTube с ноября.</span></div><span class="pill mid">Важно</span></li>
+      <li><div><b>Развитие и обучение</b><br><span class="muted">Интеграции для своих CRM: уведомления в Telegram-бот, заявки с сайта прямо в CRM, онлайн-оплата, WhatsApp, телефония. По сайтам: основы SEO, Яндекс Метрика, скорость загрузки. 1 час в день.</span></div><span class="pill mid">Важно</span></li>
+      <li><div><b>Химчистка мебели</b><br><span class="muted">Только входящие заказы, немного времени.</span></div><span class="pill lo">Фон</span></li>
+    </ol>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>Как собрать 150 000 ₽</h3>
+      <div class="tablewrap"><table>
+        <tr><th>Вариант</th><th class="num">Сумма</th></tr>
+        <tr><td>2 CRM по 60 000 + 1 сайт-визитка</td><td class="num">145 000</td></tr>
+        <tr><td>3 CRM по 50 000</td><td class="num">150 000</td></tr>
+        <tr><td>2 сайта с заявками + 1 CRM</td><td class="num">150 000</td></tr>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h3>Правила против распыления</h3>
+      <ul class="plain">
+        <li>Утро начинается с главного дела, до соцсетей</li>
+        <li>Одно направление на один блок времени</li>
+        <li>Новая идея записывается в «потом»</li>
+        <li>Нет энергии: 20 минут прогулки или турники, потом одно маленькое дело</li>
+        <li>Телевизор только после главного дела дня</li>
+        <li>Вечером 5 минут: что сделал, что главное завтра</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- КЛИЕНТЫ -->
+<section class="view" id="clients" hidden>
+  <div class="panel">
+    <h2>Воронка недели</h2>
+    <div class="funnel">
+      <div><span class="v num">100</span><span class="k">бизнесов в списке</span></div>
+      <div><span class="v num">60</span><span class="k">сообщений</span></div>
+      <div><span class="v num">5</span><span class="k">ответов</span></div>
+      <div><span class="v num">2–3</span><span class="k">созвона</span></div>
+      <div><span class="v num">1</span><span class="k">предоплата</span></div>
+    </div>
+    <p class="muted">Это цели, а не результаты. Обычно отвечают 5–10% на холодные сообщения.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>Кому писать</h3>
+      <ul class="plain">
+        <li>Салоны красоты и барбершопы</li>
+        <li>Автосервисы и детейлинг</li>
+        <li>Стоматологии и частные клиники</li>
+        <li>Ремонт и строительство, мебель на заказ</li>
+        <li>Кафе, доставка еды, турбазы и гостевые дома</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Где искать</h3>
+      <ul class="plain">
+        <li>2ГИС и Яндекс Карты: нет сайта или он устарел</li>
+        <li>Instagram и ВК местных бизнесов</li>
+        <li>Авито: компании, которые продают услуги без сайта</li>
+        <li>Писать в WhatsApp, Telegram или ВК, где они отвечают</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Сообщение клининговой компании</h3>
+    <div class="tpl" id="tplClean">Здравствуйте! Меня зовут Алексей, я делаю CRM для клининговых компаний. Сам несколько лет вёл выездную химчистку мебели, поэтому знаю, где теряются заявки и деньги.
+
+Недавно сделал CRM для клининга «Вода»: календарь заказов с повторами, назначение клинеров, автоматический расчёт их зарплаты и прибыль за месяц на одном экране.
+
+Могу за 10 минут показать, как это работает, и прикинуть, что подойдёт вам. Удобно на этой неделе?
+
+Мои работы: ialexrdai.github.io/portfolio</div>
+    <button class="btn" data-copy="tplClean">Скопировать текст</button>
+  </div>
+
+  <div class="panel">
+    <h3>Холодное сообщение бизнесу</h3>
+    <div class="tpl" id="tplCold">Здравствуйте! Меня зовут [имя], я делаю сайты и CRM-системы для бизнеса в Калининграде.
+
+Посмотрел ваш [профиль / сайт] и заметил, что заявки сейчас приходят только [в директ / по телефону]. Могу сделать простой сайт с формой заявки или CRM, где все клиенты и записи будут в одном месте, чтобы ничего не терялось.
+
+Если интересно, покажу пример похожей работы. Займёт 10 минут.</div>
+    <button class="btn" data-copy="tplCold">Скопировать текст</button>
+  </div>
+
+  <div class="panel">
+    <h3>Рассылка друзьям во ВК</h3>
+    <div class="tpl" id="tplVk">Привет, [имя]! Как ты? 🙂
+
+Мы недавно переехали в Калининград, и я сейчас плотно занимаюсь разработкой сайтов и CRM-систем для бизнеса. Это когда заявки, клиенты и сделки собираются в одном месте и ничего не теряется.
+
+Если у тебя или у знакомых есть бизнес, которому нужен сайт или порядок с клиентами, буду рад помочь. А за каждого клиента, которого ты приведёшь, плачу тебе 20% от суммы заказа. Например, с CRM за 60 000 ₽ это 12 000 ₽ тебе.
+
+Можно просто переслать это сообщение тому, кому может пригодиться. Спасибо! 🙌</div>
+    <button class="btn" data-copy="tplVk">Скопировать текст</button>
+  </div>
+
+  <div class="panel">
+    <h3>Пакеты услуг</h3>
+    <div class="tablewrap"><table>
+      <tr><th>Пакет</th><th>Что входит</th><th class="num">Цена</th></tr>
+      <tr><td>Сайт-визитка</td><td>1–3 страницы, контакты, адаптив под телефон</td><td class="num">от 25 000</td></tr>
+      <tr><td>Сайт с заявками</td><td>Лендинг, форма заявки, уведомления в Telegram</td><td class="num">от 45 000</td></tr>
+      <tr><td>CRM под бизнес</td><td>Клиенты, сделки, записи, отчёты</td><td class="num">от 60 000</td></tr>
+    </table></div>
+    <p class="muted">Раньше CRM стоила 30–50 тысяч. Новые цены выше, их стоит проверить на первых клиентах.</p>
+  </div>
+</section>
+
+<!-- БЛОГ -->
+<section class="view" id="blog" hidden>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Instagram · сейчас</h3>
+      <p>3 рилса и 2 карусели в неделю. Цель: показать работы и привести клиентов.</p>
+    </div>
+    <div class="panel">
+      <h3>YouTube · с ноября</h3>
+      <p>Длинные видео: разбор проектов, как устроена CRM, путь фрилансера.</p>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Идеи рилсов</h2>
+    <ul class="check" data-list="reels">
+      <li><label><input type="checkbox" id="r-1"><span>«Показываю CRM, которую сделал для клиента» за 30 секунд</span></label></li>
+      <li><label><input type="checkbox" id="r-2"><span>Сайт до и после: было в директе, стало с формой заявки</span></label></li>
+      <li><label><input type="checkbox" id="r-3"><span>3 признака, что бизнесу нужна CRM</span></label></li>
+      <li><label><input type="checkbox" id="r-4"><span>Сколько стоит сайт в 2026 и из чего складывается цена</span></label></li>
+      <li><label><input type="checkbox" id="r-5"><span>Переехал в Калининград и строю дело с нуля: день из жизни</span></label></li>
+      <li><label><input type="checkbox" id="r-6"><span>Ошибка, из-за которой бизнес теряет заявки</span></label></li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>Идеи каруселей</h2>
+    <ul class="check" data-list="carousels">
+      <li><label><input type="checkbox" id="k-1"><span>7 признаков, что бизнес теряет клиентов без CRM</span></label></li>
+      <li><label><input type="checkbox" id="k-2"><span>Кейс: задача клиента, решение, результат на скриншотах</span></label></li>
+      <li><label><input type="checkbox" id="k-3"><span>Таблица в Excel или CRM: сравнение по слайдам</span></label></li>
+      <li><label><input type="checkbox" id="k-4"><span>Из чего складывается цена сайта</span></label></li>
+      <li><label><input type="checkbox" id="k-5"><span>Что должно быть на сайте салона или автосервиса: чек-лист</span></label></li>
+    </ul>
+  </div>
+  <div class="note">В каждом рилсе в конце один призыв: «Напишите в директ слово САЙТ, расскажу, что подойдёт вашему бизнесу».</div>
+</section>
+
+<!-- ЦЕЛИ -->
+<section class="view" id="goals" hidden>
+  <div class="panel">
+    <h2>План на ноябрь 2026</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Направление</th><th>К концу ноября</th></tr>
+      <tr><td>Рассылки</td><td>База Питера закончена к ~6 ноября, дальше Москва по 30 в день. Цель: 3–5 созвонов и первая предоплата</td></tr>
+      <tr><td>Сайт химчистки</td><td>Запущен по гайду SEO-завода, подключена Яндекс Метрика, объявление на Авито ведёт на сайт</td></tr>
+      <tr><td>Интеграции CRM</td><td>Telegram, ВК, MAX, заявки с сайта, онлайн-оплата. Добавить их в пакеты и поднять цену CRM</td></tr>
+      <tr><td>ИИ-агенты</td><td>Свой помощник ведёт планер: спрашивает про день, разбирает заметки, обновляет календарь. Потом агент как услуга для клиентов</td></tr>
+      <tr><td>Фото и видео ИИ</td><td>Higgsfield в ноябре, затем Kling. Использовать в рилсах и каруселях</td></tr>
+      <tr><td>Английский</td><td>2 урока в неделю с женой, 8 уроков за месяц</td></tr>
+      <tr><td>Спорт</td><td>Тренировки 3 раза в неделю</td></tr>
+    </table></div>
+  </div>
+  <div class="panel">
+    <h2>Цели на год, до октября 2027</h2>
+    <ol class="prio">
+      <li><div><b>Финансы</b><br><span class="muted">Стабильно от 150 000 ₽ в месяц, затем 200 000 и 300 000</span></div><span class="pill hi">1</span></li>
+      <li><div><b>Семья</b><br><span class="muted">Подготовка к ребёнку</span></div><span class="pill mid">2</span></li>
+      <li><div><b>Спорт и саморазвитие</b><br><span class="muted">Турники сейчас, зал когда появятся деньги на абонемент</span></div><span class="pill mid">3</span></li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h2>Мечты, 5–10 лет</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Мечта</th><th>Ориентир</th></tr>
+      <tr><td>Свой дом</td><td class="num">8–10 млн ₽</td></tr>
+      <tr><td>Работа на себя, доход</td><td class="num">от $5 000 в месяц</td></tr>
+      <tr><td>Audi</td><td class="num">≈ 4 млн ₽</td></tr>
+      <tr><td>Свобода и путешествия</td><td>Не быть привязанным к одному месту</td></tr>
+      <tr><td>Тело</td><td>Подтянутый, регулярный спорт</td></tr>
+      <tr><td>Семья</td><td>Ребёнок</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- ХИМЧИСТКА -->
+<section class="view" id="cleaning" hidden>
+  <div class="note">Не приоритет. Время только на входящие заказы, без активного поиска.</div>
+  <div class="panel">
+    <h2>Минимум, чтобы заказы приходили сами</h2>
+    <ul class="check" data-list="clean">
+      <li><label><input type="checkbox" id="c-1"><span>Проверить оборудование и запас химии</span></label></li>
+      <li><label><input type="checkbox" id="c-2"><span>Одно объявление на Авито с фото прошлых работ и ценами</span></label></li>
+      <li><label><input type="checkbox" id="c-3"><span>Пост в 2–3 местных группах Калининграда</span></label></li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h3>Опыт</h3>
+    <p>5 лет выездной химчистки мягкой мебели в прошлом городе. Оборудование привезено в Калининград.</p>
+  </div>
+</section>
+
+
+  </main>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <form id="addForm" novalidate>
+    <h2>Новое дело</h2>
+    <label>Что сделать<input id="f-title" required placeholder="Например, созвон с клинингом"></label>
+    <label>Подробности<input id="f-meta" placeholder="Необязательно"></label>
+    <div class="row">
+      <label>Дата<input type="date" id="f-date" required></label>
+      <label>Начало<input type="time" id="f-start" value="10:00" step="900"></label>
+      <label>Конец<input type="time" id="f-end" value="11:00" step="900"></label>
+    </div>
+    <label>Направление<select id="f-type">
+      <option value="sales">Клиенты и рассылки</option>
+      <option value="blog">Блог</option>
+      <option value="work">Работа и развитие</option>
+      <option value="life">Жизнь и спорт</option>
+    </select></label>
+    <p class="err" id="f-err" hidden></p>
+    <div class="acts"><button class="btn" type="submit">Добавить</button><button class="btn ghost" type="button" id="f-cancel">Отмена</button></div>
+    <p class="muted" style="font-size:12px">Дело сохранится только в этом браузере.</p>
+  </form>
+</div>
+
+<script>
+(function(){
+  const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  const H0=9,H1=23;
+  const ICON={sales:'i-send',blog:'i-play',work:'i-laptop',life:'i-leaf'};
+  const DOW=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const DOWF=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+  const MG=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+  // Планы из planner/plans/*.md. d: сделано по записям.
+  const BASE=[
+    ['2026-10-18','11:00','12:30','Записать все услуги и выбрать главную','','work'],
+    ['2026-10-18','13:00','13:30','Сколько клиентов нужно для 150 000 ₽','Посчитать при своих ценах','sales'],
+    ['2026-10-18','15:00','17:30','Прогулка у моря с женой','','life'],
+    ['2026-10-18','20:00','20:20','План недели','Просмотреть и поправить под себя','work'],
+
+    ['2026-10-19','09:00','11:00','Сайт-портфолио и первые отклики','2 часа, без отвлечений','work'],
+    ['2026-10-19','11:00','12:00','Пылесос: достать болт из резьбы','WD-40, пассатижи, экстрактор. Не больше часа','life'],
+    ['2026-10-19','13:00','15:00','Холодные рассылки','15 сообщений бизнесам, сначала про CRM','sales'],
+    ['2026-10-19','15:00','16:00','Тема первой карусели и рилса','','blog'],
+    ['2026-10-19','18:00','18:40','Турники','','life'],
+
+    ['2026-10-20','09:00','11:30','Холодные рассылки','15 сообщений и ответы','sales'],
+    ['2026-10-20','11:30','12:30','Обед, прогулка','','life'],
+    ['2026-10-20','12:30','14:00','Рассылка друзьям во ВК','Первая половина списка, 20% за клиента','sales'],
+    ['2026-10-20','15:00','16:00','Оформить Instagram','Шапка, аватар, закреплённые','blog'],
+
+    ['2026-10-21','09:00','10:30','Рассылка по Санкт-Петербургу','15 сообщений, сначала CRM','sales'],
+    ['2026-10-21','10:30','11:00','Подготовка к встрече','','work'],
+    ['2026-10-21','11:00','11:30','Дорога в центр','','life'],
+    ['2026-10-21','11:30','12:30','Встреча в центре','','work'],
+    ['2026-10-21','12:30','13:00','Дорога домой','','life'],
+    ['2026-10-21','13:00','14:00','Обед, ответы на отклики','','life'],
+    ['2026-10-21','14:00','15:30','Отклики на вакансии','5 штук с готовым портфолио','work'],
+    ['2026-10-21','15:30','16:30','Первый рилс','','blog'],
+    ['2026-10-21','18:00','18:40','Турники','','life'],
+
+    ['2026-10-22','09:30','10:00','Подготовка к рассылке','','work'],
+    ['2026-10-22','10:00','12:00','Клининг Питера: 20 сообщений','WhatsApp и Telegram, кейс CRM «Вода»','sales',1],
+    ['2026-10-22','12:00','13:00','Обед','','life'],
+    ['2026-10-22','13:00','14:00','Ответы и отклики','Агентство на hh, EWA PRODUCT','work',1],
+    ['2026-10-22','14:00','15:00','Первый рилс','30 секунд экрана CRM «Вода»','blog'],
+    ['2026-10-22','15:00','15:30','Проверка ответов','Таблица: кому написал, ответ, следующий шаг','sales'],
+    ['2026-10-22','18:00','18:40','Турники','','life'],
+
+    ['2026-10-23','09:30','10:00','Ответы на рассылку','Назначить созвоны','sales'],
+    ['2026-10-23','10:00','12:00','Рассылка и дела','Ещё 20 сообщений клинингу Питера','sales'],
+    ['2026-10-23','12:00','13:00','Обед','','life'],
+    ['2026-10-23','14:30','15:30','Пост-кейс CRM «Вода» в ВК','Доработать черновик, скриншоты, опубликовать','blog'],
+    ['2026-10-23','15:30','17:30','Карусель в Instagram','7 слайдов со скриншотами CRM, Figma','blog'],
+    ['2026-10-23','18:00','18:40','Турники','','life'],
+    ['2026-10-23','19:00','19:15','Итоги недели','15 минут','work'],
+
+    ['2026-10-24','11:00','16:00','Море с женой','Отдых','life'],
+    ['2026-10-25','12:00','16:00','Море, отдых','','life'],
+    ['2026-10-25','19:00','19:20','План на следующую неделю','20 минут','work'],
+    // Неделя 26.10–01.11: рассылка днём, глубокая работа и учёба вечером
+    ['2026-10-26','11:00','13:00','Рассылка клинингу Питера','30 сообщений, по убыванию отзывов','sales'],
+    ['2026-10-26','13:00','14:00','Обед, прогулка','','life'],
+    ['2026-10-26','14:00','14:30','Ответы на рассылку','Ответить, назначить созвоны, отметить в таблице','sales'],
+    ['2026-10-26','14:30','15:00','Повтор молчащим','Тем, кто прочитал 22–23.10 и не ответил','sales'],
+    ['2026-10-26','16:00','19:00','Сайт химчистки: старт по гайду','Показать гайд SEO-завода, структура и семантика','work'],
+    ['2026-10-26','19:00','19:45','Тренировка','Турники','life'],
+    ['2026-10-26','19:45','20:30','Ужин','','life'],
+    ['2026-10-26','20:30','21:30','ИИ-агент для планера: что он должен делать','Список функций и вопросов, которые он задаёт','work'],
+    ['2026-10-26','21:30','22:00','YouTube вместо сериала','Познавательный или мотивационный ролик','life'],
+
+    ['2026-10-27','11:00','13:00','Рассылка клинингу Питера','30 сообщений','sales'],
+    ['2026-10-27','13:00','14:00','Обед, прогулка','','life'],
+    ['2026-10-27','14:00','15:00','Пылесос: решить с болтом','Попытка экстрактором или отнести в мастерскую','life'],
+    ['2026-10-27','15:00','15:30','Ответы на рассылку','','sales'],
+    ['2026-10-27','16:00','19:00','CRM: интеграция с Telegram','Бот с уведомлениями о новых заявках','work'],
+    ['2026-10-27','19:00','20:00','Ужин','','life'],
+    ['2026-10-27','20:00','20:30','Английский с женой','Урок 1 из 2','life'],
+    ['2026-10-27','20:30','21:30','Higgsfield: реалистичные фото','Посмотреть обучение, сделать 5 тестовых фото','blog'],
+    ['2026-10-27','21:30','22:00','YouTube вместо сериала','','life'],
+
+    ['2026-10-28','11:00','13:00','Рассылка клинингу Питера','30 сообщений','sales'],
+    ['2026-10-28','13:00','14:00','Обед, прогулка','','life'],
+    ['2026-10-28','14:00','15:00','Купить вешалки для полотенец','На дверь ванной, крепёж','life'],
+    ['2026-10-28','15:00','15:30','Ответы на рассылку','','sales'],
+    ['2026-10-28','16:00','19:00','Сайт химчистки','Главная страница и услуги','work'],
+    ['2026-10-28','19:00','19:45','Тренировка','','life'],
+    ['2026-10-28','19:45','20:30','Ужин','','life'],
+    ['2026-10-28','20:30','21:30','ИИ-агенты: первая версия помощника','Агент задаёт вопросы и обновляет план','work'],
+    ['2026-10-28','21:30','22:00','YouTube вместо сериала','','life'],
+
+    ['2026-10-29','11:00','13:00','Рассылка клинингу Питера','30 сообщений','sales'],
+    ['2026-10-29','13:00','14:00','Обед, прогулка','','life'],
+    ['2026-10-29','14:00','14:45','Прикрутить вешалки на дверь','','life'],
+    ['2026-10-29','15:00','15:30','Ответы на рассылку','','sales'],
+    ['2026-10-29','16:00','19:00','CRM: интеграция с ВК','Заявки из сообщений группы в CRM','work'],
+    ['2026-10-29','19:00','20:00','Ужин','','life'],
+    ['2026-10-29','20:00','20:30','Английский с женой','Урок 2 из 2','life'],
+    ['2026-10-29','20:30','21:30','Higgsfield, потом Kling','Фото для блога, первое видео в Kling','blog'],
+    ['2026-10-29','21:30','22:00','YouTube вместо сериала','','life'],
+
+    ['2026-10-30','11:00','13:00','Рассылка клинингу Питера','30 сообщений','sales'],
+    ['2026-10-30','13:00','14:00','Обед, прогулка','','life'],
+    ['2026-10-30','14:00','15:00','Созвоны и ответы','Показ CRM тем, кто ответил','sales'],
+    ['2026-10-30','16:00','18:00','Сайт-портфолио: доработка','Новые кейсы, интеграции, контакты','work'],
+    ['2026-10-30','18:00','19:00','Сайт химчистки','','work'],
+    ['2026-10-30','19:00','19:45','Тренировка','','life'],
+    ['2026-10-30','19:45','20:30','Ужин','','life'],
+    ['2026-10-30','20:30','21:00','Итоги недели','Что сделано, что переносим','work'],
+    ['2026-10-30','21:00','22:00','ИИ-агент для планера','Доделать то, что не успел в среду','work'],
+
+    ['2026-10-31','12:00','16:00','Море с женой','Отдых','life'],
+    ['2026-10-31','20:00','21:00','Kling: видео для себя','По желанию, без плана','blog'],
+    ['2026-11-01','12:00','16:00','Отдых','','life'],
+    ['2026-11-01','19:00','19:30','План на следующую неделю','Вместе с ИИ-помощником','work'],
+  ].map((r,i)=>({id:'b'+i,date:r[0],s:r[1],e:r[2],title:r[3],meta:r[4],type:r[5],d:!!r[6]}));
+
+  // Главные дела дня, из планов на день
+  const TOP={
+    '2026-10-18':['Записать все услуги и выбрать одну главную','Прикинуть, сколько клиентов в месяц нужно для 150 000 ₽','Прогулка у моря с женой','Вечером 20 минут: план недели'],
+    '2026-10-19':['Доделать сайт-портфолио и отправить первые отклики','Пылесос: достать обломанный болт','Холодные рассылки: 15 сообщений, сначала CRM','Блог: тема первой карусели и рилса','Турники'],
+    '2026-10-20':['15 холодных сообщений','Рассылка друзьям во ВК, первая половина','Оформить Instagram'],
+    '2026-10-21':['Рассылка по Санкт-Петербургу, 15 сообщений','Встреча в центре в 11:30','5 откликов с портфолио','Первый рилс','Турники'],
+    '2026-10-22':['20 сообщений клинингу Питера с кейсом CRM «Вода»','Таблица: кому написал, ответ, следующий шаг','5 откликов на вакансии','Первый рилс: 30 секунд экрана CRM','Турники'],
+    '2026-10-23':['Ответить откликнувшимся на рассылку, назначить созвоны','Пост-кейс CRM «Вода» в ВК','Карусель в Instagram: 7 слайдов','Турники','Вечером 15 минут: итоги недели'],
+    '2026-10-24':['Море с женой, отдых'],
+    '2026-10-25':['Море, отдых','20 минут на план следующей недели'],
+    '2026-10-26':['Тренировка','Начать сайт химчистки по гайду SEO-завода','30 сообщений клинингу Питера','Повторные сообщения молчащим'],
+    '2026-10-27':['30 сообщений клинингу Питера','Пылесос: решить с болтом','Интеграция CRM с Telegram','Английский с женой, 30 минут'],
+    '2026-10-28':['30 сообщений клинингу Питера','Купить вешалки','Сайт химчистки: главная и услуги','Тренировка','Первая версия ИИ-помощника'],
+    '2026-10-29':['30 сообщений клинингу Питера','Прикрутить вешалки','Интеграция CRM с ВК','Английский с женой, 30 минут'],
+    '2026-10-30':['30 сообщений клинингу Питера','Созвоны с ответившими','Доработать сайт-портфолио','Тренировка','Итоги недели'],
+    '2026-10-31':['Море с женой, отдых'],
+    '2026-11-01':['Отдых','План на следующую неделю'],
+  };
+  const NOTE={
+    '2026-10-22':'Сделано: рассылка клинингу Питера, написаны отклики в агентство (hh) и EWA PRODUCT.',
+    '2026-10-23':'Повторные сообщения тем, кто прочитал и молчит, лучше отправить в понедельник.',
+    '2026-10-21':'Сайт-портфолио готов, рассылка по Калининграду отправлена.',
+    '2026-10-26':'Каждый вечер вместо сериала один познавательный ролик на YouTube.',
+    '2026-10-27':'Интеграция с MAX и другие переносятся на следующую неделю.',
+  };
+
+  let custom=[];try{custom=JSON.parse(store.get('planner-custom')||'[]')}catch(e){custom=[]}
+  const all=()=>BASE.concat(custom);
+  const pad=n=>String(n).padStart(2,'0');
+  const key=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const parse=k=>{const[a,b,c]=k.split('-').map(Number);return new Date(a,b-1,c)};
+  const addD=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+  const monday=d=>addD(d,-((d.getDay()+6)%7));
+  const mins=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
+  const isoWeek=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const n=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-n);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)};
+  const isDone=ev=>{const v=store.get('ev-'+ev.id);return v===null?ev.d:v==='1'};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const byDate=k=>all().filter(e=>e.date===k).sort((a,b)=>mins(a.s)-mins(b.s));
+
+  let mode=store.get('planner-mode')||(innerWidth<640?'day':'week');
+  if(!['day','week','month'].includes(mode))mode='week';
+  let cursor=new Date();cursor=new Date(cursor.getFullYear(),cursor.getMonth(),cursor.getDate());
+  const host=document.getElementById('calHost');
+
+  function evHTML(ev){
+    const s=mins(ev.s),e=Math.max(mins(ev.e),s+15);
+    const top=(Math.max(s,H0*60)-H0*60)/60, h=(Math.min(e,H1*60)-Math.max(s,H0*60))/60;
+    const short=h<0.9,tall=h>=1.75;
+    const done=isDone(ev);
+    return '<div title="'+esc(ev.title+(ev.meta?'. '+ev.meta:''))+'" class="ev '+ev.type+(short?' short':'')+(tall?' tall':'')+(done?' done':'')+'" style="top:calc('+top+' * var(--px) + 2px);height:calc('+Math.max(h,0.4)+' * var(--px) - 4px)">'+
+      '<div class="hd"><span class="ic"><svg><use href="#'+ICON[ev.type]+'"/></svg></span>'+
+      (short?'<span class="t">'+esc(ev.title)+'</span><span class="tm">'+ev.s+'</span>':'<span class="tm">'+(tall?ev.s+'–'+ev.e:ev.s)+'</span>')+
+      (ev.id[0]==='c'?'<button class="del" data-del="'+ev.id+'" aria-label="Удалить">×</button>':'')+
+      '<button class="done-btn" data-ev="'+ev.id+'" aria-pressed="'+done+'" aria-label="Отметить сделанным"><svg><use href="#i-check"/></svg></button></div>'+
+      (short?'':'<span class="t">'+esc(ev.title)+'</span>'+(ev.meta&&h>=1.75?'<span class="m">'+esc(ev.meta)+'</span>':''))+
+    '</div>';
+  }
+
+  function grid(days){
+    const today=key(new Date());
+    const n=days.length;
+    let head='<div class="cal"><div class="corner">Нед<b>'+isoWeek(days[0])+'</b></div>';
+    let body='<div class="cal calb"><div class="times">';
+    for(let h=H0+1;h<H1;h++)body+='<span style="top:calc('+(h-H0)+' * var(--px))">'+pad(h)+':00</span>';
+    body+='</div>';
+    let any=false;
+    days.forEach(d=>{
+      const k=key(d),wk=d.getDay()===0||d.getDay()===6,isT=k===today;
+      head+='<button class="dh'+(isT?' today':'')+(wk?' wkend':'')+'" data-goday="'+k+'"><small>'+(n===1?DOWF[(d.getDay()+6)%7]:DOW[(d.getDay()+6)%7])+'</small><b>'+pad(d.getDate())+'.'+pad(d.getMonth()+1)+'</b></button>';
+      const evs=byDate(k);if(evs.length)any=true;
+      body+='<div class="col'+(isT?' today':'')+'">'+evs.map(evHTML).join('')+'</div>';
+    });
+    const now=new Date(),nm=now.getHours()*60+now.getMinutes();
+    if(days.some(d=>key(d)===today)&&nm>=H0*60&&nm<=H1*60)
+      body+='<div class="now" style="top:calc('+((nm-H0*60)/60)+' * var(--px))"><em>'+pad(now.getHours())+':'+pad(now.getMinutes())+'</em></div>';
+    if(!any)body+='<div class="empty">'+(n===1?'На этот день':'На эту неделю')+' плана пока нет. Нажмите «Добавить дело» или попросите Claude составить план.</div>';
+    body+='</div>';
+    return '<div class="calwrap"><div class="calin'+(n===1?' one':'')+'" style="--cols:'+n+';--hours:'+(H1-H0)+'">'+head+'</div>'+body+'</div></div>';
+  }
+
+  function dayPanel(d){
+    const k=key(d),items=TOP[k]||[];
+    let h='<aside class="card"><h3>Главное на день</h3>';
+    if(items.length){
+      h+='<ul class="check">'+items.map((t,i)=>'<li><label><input type="checkbox" id="top-'+k+'-'+i+'"><span>'+esc(t)+'</span></label></li>').join('')+'</ul>';
+    }else h+='<p class="muted">Список главных дел на этот день ещё не составлен. По правилу планера: 3–5 главных дел, не по часам.</p>';
+    if(NOTE[k])h+='<p class="muted">'+esc(NOTE[k])+'</p>';
+    return h+'</aside>';
+  }
+
+  function month(){
+    const first=new Date(cursor.getFullYear(),cursor.getMonth(),1);
+    let d=monday(first);const today=key(new Date());
+    let h='<div class="month">'+DOW.map(w=>'<span class="wd">'+w+'</span>').join('');
+    for(let i=0;i<42;i++){
+      const k=key(d),evs=byDate(k);
+      if(i===35&&d.getMonth()!==cursor.getMonth())break;
+      h+='<button class="mc'+(d.getMonth()!==cursor.getMonth()?' out':'')+(k===today?' today':'')+'" data-goday="'+k+'"><span class="d">'+d.getDate()+'</span>'+
+        evs.slice(0,3).map(e=>'<span class="chip '+e.type+'">'+esc(e.title)+'</span>').join('')+
+        (evs.length>3?'<span class="more">ещё '+(evs.length-3)+'</span>':'')+'</button>';
+      d=addD(d,1);
+    }
+    return h+'</div>';
+  }
+
+  const FOCUS={'2026-10-19':'Фокус недели: первые клиенты на сайты и CRM','2026-10-26':'Фокус недели: 150 сообщений по Питеру, сайт химчистки, интеграции CRM'};
+  function render(){
+    document.getElementById('focus').textContent=FOCUS[key(monday(mode==='month'?new Date():cursor))]||'План на эту неделю ещё не составлен';
+    document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
+    const lab=document.getElementById('rangeLabel');
+    if(mode==='week'){
+      const m=monday(cursor),e=addD(m,6);
+      lab.textContent=m.getMonth()===e.getMonth()?m.getDate()+'–'+e.getDate()+' '+MG[e.getMonth()]:m.getDate()+' '+MG[m.getMonth()]+' – '+e.getDate()+' '+MG[e.getMonth()];
+      host.innerHTML=grid([0,1,2,3,4,5,6].map(i=>addD(m,i)));
+    }else if(mode==='day'){
+      lab.textContent=cursor.getDate()+' '+MG[cursor.getMonth()];
+      host.innerHTML='<div class="dayview">'+grid([cursor])+dayPanel(cursor)+'</div>';
+      bindChecks(host);
+    }else{
+      lab.textContent=MN[cursor.getMonth()]+' '+cursor.getFullYear();
+      host.innerHTML=month();
+    }
+  }
+
+  host.addEventListener('click',e=>{
+    const b=e.target.closest('[data-ev]');
+    if(b){const ev=all().find(x=>x.id===b.dataset.ev);store.set('ev-'+ev.id,isDone(ev)?'0':'1');render();return}
+    const del=e.target.closest('[data-del]');
+    if(del){custom=custom.filter(x=>x.id!==del.dataset.del);store.set('planner-custom',JSON.stringify(custom));render();return}
+    const g=e.target.closest('[data-goday]');
+    if(g&&mode!=='day'){cursor=parse(g.dataset.goday);setMode('day')}
+  });
+  function setMode(m){mode=m;store.set('planner-mode',m);render()}
+  document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+  function shift(dir){
+    if(mode==='day')cursor=addD(cursor,dir);
+    else if(mode==='week')cursor=addD(cursor,7*dir);
+    else cursor=new Date(cursor.getFullYear(),cursor.getMonth()+dir,1);
+    render();
+  }
+  document.getElementById('prev').addEventListener('click',()=>shift(-1));
+  document.getElementById('next').addEventListener('click',()=>shift(1));
+  document.getElementById('toToday').addEventListener('click',()=>{const t=new Date();cursor=new Date(t.getFullYear(),t.getMonth(),t.getDate());render()});
+
+  // greeting
+  const hr=new Date().getHours();
+  document.getElementById('greet').textContent=(hr<5?'Доброй ночи':hr<12?'Доброе утро':hr<18?'Добрый день':'Добрый вечер')+', Алексей';
+
+  // views
+  const navBtns=[...document.querySelectorAll('.side nav button')];
+  function show(id){
+    if(!document.getElementById(id)||!navBtns.some(b=>b.dataset.view===id))id='schedule';
+    navBtns.forEach(b=>b.toggleAttribute('aria-current',false));
+    navBtns.forEach(b=>{if(b.dataset.view===id)b.setAttribute('aria-current','page')});
+    document.querySelectorAll('section.view').forEach(s=>s.hidden=s.id!==id);
+    store.set('planner-view',id);
+  }
+  navBtns.forEach(b=>b.addEventListener('click',()=>{show(b.dataset.view);window.scrollTo(0,0)}));
+  document.getElementById('moneyChip').addEventListener('click',()=>{show('overview');window.scrollTo(0,0)});
+  show((location.hash||'').slice(1)||store.get('planner-view')||'schedule');
+
+  // checklists
+  function updateProgress(){
+    document.querySelectorAll('[data-progress]').forEach(el=>{
+      const list=document.querySelector('[data-list="'+el.dataset.progress+'"]');
+      el.textContent='Сделано '+list.querySelectorAll('input:checked').length+' из '+list.querySelectorAll('input').length;
+    });
+  }
+  function bindChecks(root){
+    root.querySelectorAll('.check input').forEach(cb=>{
+      cb.checked=store.get('cb-'+cb.id)==='1';
+      cb.addEventListener('change',()=>{store.set('cb-'+cb.id,cb.checked?'1':'0');updateProgress()});
+    });
+  }
+  bindChecks(document.querySelector('.main'));
+  updateProgress();
+  render();
+
+  // money
+  const inp=document.getElementById('earned'),big=document.getElementById('earnedBig'),bar=document.getElementById('earnedBar'),chip=document.getElementById('moneyChipVal');
+  const fmt=n=>n.toLocaleString('ru-RU')+' ₽';
+  function money(){const v=Math.max(0,+inp.value||0);big.textContent=fmt(v);chip.textContent=fmt(v);bar.style.width=Math.min(100,v/300000*100)+'%';store.set('earned',String(v))}
+  inp.value=store.get('earned')||'0';money();inp.addEventListener('input',money);
+
+  // copy
+  document.querySelectorAll('[data-copy]').forEach(btn=>btn.addEventListener('click',()=>{
+    const el=document.getElementById(btn.dataset.copy),t=el.textContent;
+    const done=()=>{const o=btn.textContent;btn.textContent='Скопировано';setTimeout(()=>btn.textContent=o,1500)};
+    const sel=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Текст выделен, скопируйте вручную'};
+    try{navigator.clipboard.writeText(t).then(done,sel)}catch(e){sel()}
+  }));
+
+  // add event
+  const sheet=document.getElementById('sheet'),form=document.getElementById('addForm'),err=document.getElementById('f-err');
+  document.getElementById('addBtn').addEventListener('click',()=>{
+    show('schedule');
+    document.getElementById('f-date').value=key(mode==='month'?new Date():cursor);
+    err.hidden=true;sheet.hidden=false;document.getElementById('f-title').focus();
+  });
+  const close=()=>{sheet.hidden=true};
+  document.getElementById('f-cancel').addEventListener('click',close);
+  sheet.addEventListener('click',e=>{if(e.target===sheet)close()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!sheet.hidden)close()});
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    const title=document.getElementById('f-title').value.trim(),date=document.getElementById('f-date').value,s=document.getElementById('f-start').value,en=document.getElementById('f-end').value;
+    const fail=m=>{err.textContent=m;err.hidden=false};
+    if(!title)return fail('Напишите, что нужно сделать.');
+    if(!date)return fail('Выберите дату.');
+    if(!s||!en||mins(en)<=mins(s))return fail('Конец должен быть позже начала.');
+    if(mins(s)<H0*60||mins(en)>H1*60)return fail('Календарь показывает время с 09:00 до 23:00.');
+    custom.push({id:'c'+Date.now(),date,s,e:en,title,meta:document.getElementById('f-meta').value.trim(),type:document.getElementById('f-type').value,d:false});
+    store.set('planner-custom',JSON.stringify(custom));
+    form.reset();document.getElementById('f-start').value='10:00';document.getElementById('f-end').value='11:00';
+    cursor=parse(date);close();render();
+  });
+})();
+</script>
+
+</html>
