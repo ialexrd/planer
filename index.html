@@ -773,7 +773,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 
   const FOCUS={'2026-10-19':'Фокус недели: первые клиенты на сайты и CRM','2026-10-26':'Фокус недели: 150 сообщений по Питеру, сайт химчистки, интеграции CRM'};
   function render(){
-    document.getElementById('focus').textContent=FOCUS[key(monday(mode==='month'?new Date():cursor))]||'План на эту неделю ещё не составлен';
+    document.getElementById('focus').textContent=FOCUS[key(monday(mode==='month'?new Date():mode==='week'?addD(cursor,3):cursor))]||'План на эту неделю ещё не составлен';
     document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
     const lab=document.getElementById('rangeLabel');
     if(mode==='week'){
