@@ -9,6 +9,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
+.sync{margin-top:12px;display:grid;gap:6px;font-size:12px}
+.sync form{display:grid;gap:6px}
+.sync input{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:inherit}
+</style>
+<style>
 /* Layout: dark rounded sidebar on the left, cream workspace on the right; the schedule is a week grid with a time column and absolutely placed event cards */
 :root{
   --bg:#f6f0e1; --surface:#fbf7ee; --ink:#151412; --muted:#6f6858; --line:#e4dbc6;
@@ -249,7 +254,13 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
         <button data-view="cleaning"><svg><use href="#i-spark"/></svg>Химчистка</button>
       </nav>
     </div>
-    <div class="foot">Калининград<br>Сайты и CRM, блог, рассылки</div>
+    <div class="foot">Калининград<br>Сайты и CRM, блог, рассылки
+      <div class="sync" id="sync">
+        <span class="muted" id="syncText">Дела хранятся в этом браузере</span>
+        <form id="loginForm" hidden><input type="email" id="lg-email" placeholder="Почта" autocomplete="username" required><input type="password" id="lg-pass" placeholder="Пароль" autocomplete="current-password" required><button class="btn" type="submit">Войти</button></form>
+        <button class="btn ghost" type="button" id="syncBtn">Синхронизировать с ботом</button>
+      </div>
+    </div>
   </aside>
 
   <main class="main">
@@ -548,7 +559,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     </select></label>
     <p class="err" id="f-err" hidden></p>
     <div class="acts"><button class="btn" type="submit">Добавить</button><button class="btn ghost" type="button" id="f-cancel">Отмена</button></div>
-    <p class="muted" style="font-size:12px">Дело сохранится только в этом браузере.</p>
+    <p class="muted" style="font-size:12px"><span id="saveHint">Дело сохранится только в этом браузере.</span></p>
   </form>
 </div>
 
@@ -694,7 +705,9 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
   };
 
   let custom=[];try{custom=JSON.parse(store.get('planner-custom')||'[]')}catch(e){custom=[]}
-  const all=()=>BASE.concat(custom);
+  // cloud: дела из Firestore (общие с Telegram-ботом), null пока не выполнен вход
+  let cloud=null;
+  const all=()=>cloud?cloud.filter(x=>!x.deleted):BASE.concat(custom);
   const pad=n=>String(n).padStart(2,'0');
   const key=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
   const parse=k=>{const[a,b,c]=k.split('-').map(Number);return new Date(a,b-1,c)};
@@ -702,7 +715,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
   const monday=d=>addD(d,-((d.getDay()+6)%7));
   const mins=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
   const isoWeek=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const n=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-n);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)};
-  const isDone=ev=>{const v=store.get('ev-'+ev.id);return v===null?ev.d:v==='1'};
+  const isDone=ev=>{if(cloud)return !!ev.d;const v=store.get('ev-'+ev.id);return v===null?ev.d:v==='1'};
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const byDate=k=>all().filter(e=>e.date===k).sort((a,b)=>mins(a.s)-mins(b.s));
 
@@ -719,7 +732,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     return '<div title="'+esc(ev.title+(ev.meta?'. '+ev.meta:''))+'" class="ev '+ev.type+(short?' short':'')+(tall?' tall':'')+(done?' done':'')+'" style="top:calc('+top+' * var(--px) + 2px);height:calc('+Math.max(h,0.4)+' * var(--px) - 4px)">'+
       '<div class="hd"><span class="ic"><svg><use href="#'+ICON[ev.type]+'"/></svg></span>'+
       (short?'<span class="t">'+esc(ev.title)+'</span><span class="tm">'+ev.s+'</span>':'<span class="tm">'+(tall?ev.s+'–'+ev.e:ev.s)+'</span>')+
-      (ev.id[0]==='c'?'<button class="del" data-del="'+ev.id+'" aria-label="Удалить">×</button>':'')+
+      (cloud||ev.id[0]==='c'?'<button class="del" data-del="'+ev.id+'" aria-label="Удалить">×</button>':'')+
       '<button class="done-btn" data-ev="'+ev.id+'" aria-pressed="'+done+'" aria-label="Отметить сделанным"><svg><use href="#i-check"/></svg></button></div>'+
       (short?'':'<span class="t">'+esc(ev.title)+'</span>'+(ev.meta&&h>=1.75?'<span class="m">'+esc(ev.meta)+'</span>':''))+
     '</div>';
@@ -793,8 +806,9 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 
   host.addEventListener('click',e=>{
     const b=e.target.closest('[data-ev]');
-    if(b){const ev=all().find(x=>x.id===b.dataset.ev);store.set('ev-'+ev.id,isDone(ev)?'0':'1');render();return}
+    if(b){const ev=all().find(x=>x.id===b.dataset.ev);if(cloud){fb.set(ev.id,{d:!ev.d});return}store.set('ev-'+ev.id,isDone(ev)?'0':'1');render();return}
     const del=e.target.closest('[data-del]');
+    if(del&&cloud){const ev=cloud.find(x=>x.id===del.dataset.del);ev.base?fb.set(ev.id,{deleted:true}):fb.del(ev.id);return}
     if(del){custom=custom.filter(x=>x.id!==del.dataset.del);store.set('planner-custom',JSON.stringify(custom));render();return}
     const g=e.target.closest('[data-goday]');
     if(g&&mode!=='day'){cursor=parse(g.dataset.goday);setMode('day')}
@@ -878,11 +892,58 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     if(!date)return fail('Выберите дату.');
     if(!s||!en||mins(en)<=mins(s))return fail('Конец должен быть позже начала.');
     if(mins(s)<H0*60||mins(en)>H1*60)return fail('Календарь показывает время с 09:00 до 23:00.');
-    custom.push({id:'c'+Date.now(),date,s,e:en,title,meta:document.getElementById('f-meta').value.trim(),type:document.getElementById('f-type').value,d:false});
-    store.set('planner-custom',JSON.stringify(custom));
+    const item={date,s,e:en,title,meta:document.getElementById('f-meta').value.trim(),type:document.getElementById('f-type').value,d:false};
+    if(cloud)fb.add(item);
+    else{custom.push({id:'c'+Date.now(),...item});store.set('planner-custom',JSON.stringify(custom))}
     form.reset();document.getElementById('f-start').value='10:00';document.getElementById('f-end').value='11:00';
     cursor=parse(date);close();render();
   });
+
+  // ---- Синхронизация с Firebase (тот же проект, что у CRM) ----
+  const FB_CONFIG={apiKey:"AIzaSyBgRnmZiIvax7jraueM-nOPRgIZm0vkpL8",authDomain:"crm-orders-a794f.firebaseapp.com",projectId:"crm-orders-a794f",storageBucket:"crm-orders-a794f.firebasestorage.app",messagingSenderId:"371822045791",appId:"1:371822045791:web:0a949bf6daf5345a15c9ea"};
+  const SDK='https://www.gstatic.com/firebasejs/11.0.0/';
+  const fb={};
+  const syncText=document.getElementById('syncText'),loginForm=document.getElementById('loginForm'),syncBtn=document.getElementById('syncBtn');
+  // Стабильный id для дел из BASE, чтобы новые строки в коде не сдвигали уже перенесённые
+  const baseId=ev=>'b-'+ev.date+'-'+ev.s.replace(':','')+'-'+[...ev.title].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7).toString(36);
+
+  (async()=>{
+    const [{initializeApp},fs,au]=await Promise.all(['firebase-app.js','firebase-firestore.js','firebase-auth.js'].map(f=>import(SDK+f)));
+    const app=initializeApp(FB_CONFIG),db=fs.getFirestore(app),auth=au.getAuth(app);
+    const col=fs.collection(db,'planner_events');
+    fb.set=(id,f)=>fs.setDoc(fs.doc(col,id),f,{merge:true});
+    fb.del=id=>fs.deleteDoc(fs.doc(col,id));
+    fb.add=item=>fs.addDoc(col,{...item,createdAt:Date.now(),source:'site'});
+    syncBtn.onclick=()=>{loginForm.hidden=!loginForm.hidden};
+    loginForm.addEventListener('submit',async e=>{
+      e.preventDefault();
+      try{await au.signInWithEmailAndPassword(auth,document.getElementById('lg-email').value,document.getElementById('lg-pass').value);loginForm.hidden=true}
+      catch(x){syncText.textContent='Не удалось войти: '+x.code}
+    });
+    let seeded=false,unsub=null;
+    au.onAuthStateChanged(auth,user=>{
+      if(unsub){unsub();unsub=null}
+      if(!user){cloud=null;syncText.textContent='Дела хранятся в этом браузере';syncBtn.hidden=false;render();return}
+      syncBtn.hidden=true;syncText.textContent='Синхронизация…';
+      unsub=fs.onSnapshot(col,async snap=>{
+        cloud=snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(!seeded){seeded=true;await seed(new Set(cloud.map(x=>x.id)))}
+        syncText.textContent='☁ Общие дела с ботом · '+user.email;
+        document.getElementById('saveHint').textContent='Дело сохранится в облаке и будет видно боту.';
+        render();
+      },x=>{syncText.textContent='Ошибка доступа: '+x.code});
+    });
+    // Переносим в облако дела из кода и из этого браузера, которых там ещё нет
+    async function seed(have){
+      const batch=fs.writeBatch(db);let n=0;
+      for(const ev of BASE){const id=baseId(ev);if(have.has(id))continue;
+        batch.set(fs.doc(col,id),{date:ev.date,s:ev.s,e:ev.e,title:ev.title,meta:ev.meta,type:ev.type,d:isLocalDone(ev),base:true,createdAt:Date.now()});n++}
+      for(const ev of custom){if(have.has(ev.id))continue;
+        batch.set(fs.doc(col,ev.id),{date:ev.date,s:ev.s,e:ev.e,title:ev.title,meta:ev.meta||'',type:ev.type,d:isLocalDone(ev),createdAt:Date.now(),source:'site'});n++}
+      if(n)await batch.commit();
+    }
+    function isLocalDone(ev){const v=store.get('ev-'+ev.id);return v===null?!!ev.d:v==='1'}
+  })().catch(x=>{syncText.textContent='Синхронизация недоступна';syncBtn.hidden=true;console.warn(x)});
 })();
 </script>
 
