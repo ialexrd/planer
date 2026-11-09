@@ -213,6 +213,32 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 .sheet .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
 .sheet .err{color:#c0392b;font-size:13px}
 
+/* books */
+#books [hidden]{display:none!important}
+.books-list{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.book-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;border-radius:12px}
+.book-row:hover{background:var(--bg)}
+.book-row input{width:18px;height:18px;margin:0;accent-color:#c0628f;cursor:pointer}
+.book-open{display:grid;gap:1px;background:none;border:0;padding:4px 0;text-align:left;cursor:pointer;min-width:0}
+.book-open b{font-weight:600}
+.book-open span{font-size:13px;color:var(--muted)}
+.book-row.read .book-open b{color:var(--muted);text-decoration:line-through}
+.book-meta{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;gap:6px;align-items:center}
+.book-meta svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+.book-head{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.book-head .t{flex:1;min-width:200px;display:grid;gap:4px}
+.book-why{color:var(--muted)}
+.book-add,.note-add{display:grid;gap:8px}
+.book-add .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.book-add input,.note-add textarea{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:9px 12px;color:var(--ink);font:inherit;width:100%}
+.note-add textarea{min-height:96px;resize:vertical}
+.notes{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.notes li{background:var(--bg);border-radius:14px;padding:12px 14px;display:grid;gap:6px}
+.notes .txt{white-space:pre-wrap}
+.notes .foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline}
+.linkbtn:hover{color:var(--ink)}
+
 @media (max-width:900px){
   .app{grid-template-columns:minmax(0,1fr);padding-top:12px}
   .side{position:static;height:auto;max-height:none;flex-direction:row;align-items:center;padding:10px 12px;border-radius:18px;gap:10px;overflow-x:auto}
@@ -242,6 +268,8 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
   <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></symbol>
   <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-9 6-14 15-14 0 9-5 15-14 15"/><path d="M5 19l8-8"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></symbol>
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
 </svg>
@@ -256,6 +284,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
         <button data-view="overview"><svg><use href="#i-grid"/></svg>Обзор и доход</button>
         <button data-view="clients"><svg><use href="#i-users"/></svg>Клиенты</button>
         <button data-view="blog"><svg><use href="#i-play"/></svg>Блог</button>
+        <button data-view="books"><svg><use href="#i-book"/></svg>Книги</button>
         <button data-view="goals"><svg><use href="#i-target"/></svg>Цели</button>
         <button data-view="cleaning"><svg><use href="#i-spark"/></svg>Химчистка</button>
       </nav>
@@ -480,6 +509,46 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     </ul>
   </div>
   <div class="note">В каждом рилсе в конце один призыв: «Напишите в директ слово САЙТ, расскажу, что подойдёт вашему бизнесу».</div>
+</section>
+
+<!-- КНИГИ -->
+<section class="view" id="books" hidden>
+  <div id="booksList" class="view">
+    <div class="panel">
+      <div class="book-head"><div class="t"><h2>Книги</h2><p class="progress" id="booksProgress"></p></div></div>
+      <ul class="books-list" id="booksUl"></ul>
+    </div>
+    <div class="panel">
+      <h3>Добавить книгу</h3>
+      <form class="book-add" id="bookAddForm">
+        <div class="row"><input id="ba-title" placeholder="Название" required><input id="ba-author" placeholder="Автор"></div>
+        <button class="btn" type="submit">Добавить</button>
+      </form>
+    </div>
+    <p class="muted">Галочки и заметки хранятся в этом браузере. На другом устройстве их не будет.</p>
+  </div>
+  <div id="bookDetail" class="view" hidden>
+    <div><button class="btn ghost" type="button" id="bookBack">← Все книги</button></div>
+    <div class="panel">
+      <div class="book-head">
+        <div class="t"><h2 id="bd-title"></h2><p class="muted" id="bd-author"></p><p class="book-why" id="bd-why"></p></div>
+        <label class="book-meta" style="font-size:14px;cursor:pointer"><input type="checkbox" id="bd-read" style="width:18px;height:18px;accent-color:#c0628f"> Прочитал</label>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Новая заметка</h3>
+      <form class="note-add" id="noteForm">
+        <textarea id="noteText" placeholder="Мысль, цитата или что применить. Ctrl+Enter сохраняет"></textarea>
+        <button class="btn" type="submit">Сохранить заметку</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h3 id="bd-count">Заметки</h3>
+      <ul class="notes" id="notesUl"></ul>
+      <p class="muted" id="notesEmpty">Пока заметок нет.</p>
+    </div>
+    <div><button class="linkbtn" type="button" id="bookDelete" hidden>Удалить книгу из списка</button></div>
+  </div>
 </section>
 
 <!-- ЦЕЛИ -->
@@ -1032,6 +1101,63 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
   // greeting
   const hr=new Date().getHours();
   document.getElementById('greet').textContent=(hr<5?'Доброй ночи':hr<12?'Доброе утро':hr<18?'Добрый день':'Добрый вечер')+', Алексей';
+
+  // books
+  (function(){
+    const DEFAULT_BOOKS=[
+      {id:'mom-test',title:'Спроси маму (The Mom Test)',author:'Роб Фитцпатрик',why:'Как разговаривать с клиентами, чтобы они не врали из вежливости. Читать первой.'},
+      {id:'100m-offers',title:'$100M Offers',author:'Алекс Хормози',why:'Как собрать оффер, от которого трудно отказаться.'},
+      {id:'show-your-work',title:'Покажи свою работу!',author:'Остин Клеон',why:'Как вести блог, когда ещё не чувствуешь себя экспертом.'},
+      {id:'positioning',title:'Позиционирование. Битва за умы',author:'Эл Райс, Джек Траут',why:'Почему узкое позиционирование побеждает.'}
+    ];
+    const jget=(k,d)=>{try{const v=JSON.parse(store.get(k)||'null');return v==null?d:v}catch(e){return d}};
+    const jset=(k,v)=>store.set(k,JSON.stringify(v));
+    const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const custom=()=>jget('books-custom',[]);
+    const all=()=>DEFAULT_BOOKS.concat(custom());
+    const isRead=id=>store.get('cb-book-'+id)==='1';
+    const setRead=(id,v)=>store.set('cb-book-'+id,v?'1':'0');
+    const notes=id=>jget('book-notes-'+id,[]);
+    const word=n=>{const a=n%10,b=n%100;return a===1&&b!==11?'заметка':a>=2&&a<=4&&(b<12||b>14)?'заметки':'заметок'};
+    const list=document.getElementById('booksList'),detail=document.getElementById('bookDetail');
+    let current=null;
+    function renderList(){
+      const bs=all();
+      document.getElementById('booksProgress').textContent='Прочитано '+bs.filter(b=>isRead(b.id)).length+' из '+bs.length;
+      document.getElementById('booksUl').innerHTML=bs.map(b=>{const n=notes(b.id).length;return '<li class="book-row'+(isRead(b.id)?' read':'')+'">'+
+        '<input type="checkbox" data-book="'+e(b.id)+'"'+(isRead(b.id)?' checked':'')+' aria-label="Прочитал: '+e(b.title)+'">'+
+        '<button class="book-open" type="button" data-open="'+e(b.id)+'"><b>'+e(b.title)+'</b><span>'+e(b.author||'')+'</span></button>'+
+        '<span class="book-meta">'+(n?n+' '+word(n):'')+'<svg><use href="#i-right"/></svg></span></li>'}).join('');
+    }
+    function renderDetail(){
+      const b=all().find(x=>x.id===current);if(!b){closeBook();return}
+      document.getElementById('bd-title').textContent=b.title;
+      document.getElementById('bd-author').textContent=b.author||'';
+      document.getElementById('bd-why').textContent=b.why||'';
+      document.getElementById('bd-read').checked=isRead(b.id);
+      document.getElementById('bookDelete').hidden=!custom().some(x=>x.id===b.id);
+      const ns=notes(b.id);
+      document.getElementById('bd-count').textContent=ns.length?'Заметки · '+ns.length:'Заметки';
+      document.getElementById('notesEmpty').hidden=ns.length>0;
+      document.getElementById('notesUl').innerHTML=ns.map((n,i)=>'<li><div class="txt">'+e(n.text)+'</div><div class="foot"><span>'+e(new Date(n.at).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}))+'</span><button class="linkbtn" type="button" data-del="'+i+'">Удалить</button></div></li>').reverse().join('');
+    }
+    function openBook(id){current=id;list.hidden=true;detail.hidden=false;renderDetail();window.scrollTo(0,0);try{history.replaceState(null,'','#books/'+id)}catch(err){}}
+    function closeBook(){current=null;detail.hidden=true;list.hidden=false;renderList();try{history.replaceState(null,'','#books')}catch(err){}}
+    document.getElementById('booksUl').addEventListener('change',ev=>{const id=ev.target.dataset.book;if(id){setRead(id,ev.target.checked);renderList()}});
+    document.getElementById('booksUl').addEventListener('click',ev=>{const b=ev.target.closest('[data-open]');if(b)openBook(b.dataset.open)});
+    document.getElementById('bookBack').addEventListener('click',closeBook);
+    document.getElementById('bd-read').addEventListener('change',ev=>{setRead(current,ev.target.checked)});
+    const ta=document.getElementById('noteText');
+    document.getElementById('noteForm').addEventListener('submit',ev=>{ev.preventDefault();const t=ta.value.trim();if(!t)return;const ns=notes(current);ns.push({text:t,at:Date.now()});jset('book-notes-'+current,ns);ta.value='';store.set('book-draft-'+current,'');renderDetail()});
+    ta.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&(ev.ctrlKey||ev.metaKey)){ev.preventDefault();document.getElementById('noteForm').requestSubmit()}});
+    document.getElementById('notesUl').addEventListener('click',ev=>{const d=ev.target.dataset.del;if(d==null)return;if(!confirm('Удалить заметку?'))return;const ns=notes(current);ns.splice(+d,1);jset('book-notes-'+current,ns);renderDetail()});
+    document.getElementById('bookAddForm').addEventListener('submit',ev=>{ev.preventDefault();const t=document.getElementById('ba-title').value.trim();if(!t)return;const c=custom();c.push({id:'u'+Date.now().toString(36),title:t,author:document.getElementById('ba-author').value.trim()});jset('books-custom',c);ev.target.reset();renderList()});
+    document.getElementById('bookDelete').addEventListener('click',()=>{if(!confirm('Удалить книгу и её заметки?'))return;jset('books-custom',custom().filter(x=>x.id!==current));store.set('book-notes-'+current,'[]');closeBook()});
+    renderList();
+    const h=(location.hash||'').slice(1);
+    if(h.indexOf('books/')===0){location.hash='books';setTimeout(()=>openBook(h.slice(6)),0)}
+    document.querySelector('.side nav button[data-view="books"]').addEventListener('click',()=>{if(current)closeBook()});
+  })();
 
   // views
   const navBtns=[...document.querySelectorAll('.side nav button')];
