@@ -300,6 +300,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
       </div>
       <div class="acts">
         <button class="money-chip" id="moneyChip" type="button"><b class="num" id="moneyChipVal">0 ₽</b><span class="muted">из 150 000 за месяц</span></button>
+        <button class="btn ghost" id="syncBtn" type="button" title="Синхронизация с облаком">Войти</button>
         <button class="btn" id="addBtn" type="button">Добавить дело</button>
       </div>
     </div>
@@ -627,7 +628,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     </select></label>
     <p class="err" id="f-err" hidden></p>
     <div class="acts"><button class="btn" type="submit" id="f-submit">Добавить</button><button class="btn ghost" type="button" id="f-cancel">Отмена</button><button class="btn ghost danger" type="button" id="f-delete" hidden>Удалить</button></div>
-    <p class="muted" style="font-size:12px">Изменения сохраняются только в этом браузере.</p>
+    <p class="muted sync-note" style="font-size:12px">Изменения сохраняются только в этом браузере.</p>
   </form>
 </div>
 
@@ -924,9 +925,19 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
   let custom=[];try{custom=JSON.parse(store.get('planner-custom')||'[]')}catch(e){custom=[]}
   let ov={};try{ov=JSON.parse(store.get('planner-ov')||'{}')||{}}catch(e){ov={}}
   if(!store.get('planner-mig1')){MIG.forEach(([i,k])=>{const v=store.get('ev-b'+i);if(v!==null)store.set('ev-k'+k,v)});store.set('planner-mig1','1')}
-  const save=()=>{store.set('planner-ov',JSON.stringify(ov));store.set('planner-custom',JSON.stringify(custom))};
-  const all=()=>BASE.map(e=>ov[e.id]?Object.assign({},e,ov[e.id]):e).filter(e=>!e.deleted).concat(custom);
-  function patch(id,p){const c=custom.find(x=>x.id===id);if(c)Object.assign(c,p);else ov[id]=Object.assign(ov[id]||{},p)}
+  // remote: дела из Firestore (planner_events) после входа; до входа планер работает по-старому, из браузера.
+  let remote=null;const dirty=new Set();
+  const doneLocal=e=>{const v=store.get('ev-'+e.id);return v===null?e:Object.assign({},e,{d:v==='1'})};
+  const legacy=()=>BASE.map(e=>ov[e.id]?Object.assign({},e,ov[e.id]):e).concat(custom).map(doneLocal);
+  const save=()=>{
+    if(remote){if(dirty.size&&window.PLANER_DB)window.PLANER_DB.push([...dirty].map(id=>remote[id]).filter(Boolean));dirty.clear();return}
+    store.set('planner-ov',JSON.stringify(ov));store.set('planner-custom',JSON.stringify(custom));
+  };
+  const all=()=>(remote?Object.values(remote):legacy()).filter(e=>!e.deleted);
+  function patch(id,p){
+    if(remote){if(remote[id]){Object.assign(remote[id],p);dirty.add(id)}return}
+    const c=custom.find(x=>x.id===id);if(c)Object.assign(c,p);else ov[id]=Object.assign(ov[id]||{},p);
+  }
   const pad=n=>String(n).padStart(2,'0');
   const key=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
   const parse=k=>{const[a,b,c]=k.split('-').map(Number);return new Date(a,b-1,c)};
@@ -947,7 +958,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     up.forEach(e=>{const st=mins(e.s),en=mins(e.e),d=en-st;if(en>start){const ne=Math.max(start,15),ns=Math.max(ne-d,0);patch(e.id,{s:hm(ns),e:hm(ne)});start=ns}else start=Math.min(start,st)});
   }
   const isoWeek=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const n=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-n);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)};
-  const isDone=ev=>{const v=store.get('ev-'+ev.id);return v===null?ev.d:v==='1'};
+  const isDone=ev=>{if(remote)return !!ev.d;const v=store.get('ev-'+ev.id);return v===null?!!ev.d:v==='1'};
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const byDate=k=>all().filter(e=>e.date===k).sort((a,b)=>mins(a.s)-mins(b.s));
 
@@ -1039,7 +1050,7 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
 
   host.addEventListener('click',e=>{
     const b=e.target.closest('[data-ev]');
-    if(b){const ev=all().find(x=>x.id===b.dataset.ev);store.set('ev-'+ev.id,isDone(ev)?'0':'1');render();return}
+    if(b){const ev=all().find(x=>x.id===b.dataset.ev);if(remote){patch(ev.id,{d:!isDone(ev)});save()}else store.set('ev-'+ev.id,isDone(ev)?'0':'1');render();return}
     const g=e.target.closest('[data-goday]');
     if(g&&mode!=='day'){cursor=parse(g.dataset.goday);setMode('day')}
   });
@@ -1221,7 +1232,8 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
   $('addBtn').addEventListener('click',()=>{show('schedule');openForm(null)});
   $('f-delete').addEventListener('click',()=>{
     if(!editing)return;
-    if(custom.some(x=>x.id===editing))custom=custom.filter(x=>x.id!==editing);else patch(editing,{deleted:true});
+    if(remote)patch(editing,{deleted:true});
+    else if(custom.some(x=>x.id===editing))custom=custom.filter(x=>x.id!==editing);else patch(editing,{deleted:true});
     save();sheet.hidden=true;render();
   });
   function visible(date){
@@ -1244,12 +1256,148 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     const data={date,s,e:en,title,meta:$('f-meta').value.trim(),type:$('f-type').value};
     let id=editing;
     if(id)patch(id,data);
-    else{id='c'+Date.now();custom.push(Object.assign({id,d:false},data))}
+    else{id='c'+Date.now();const obj=Object.assign({id,d:false},data);if(remote){remote[id]=obj;dirty.add(id)}else custom.push(obj)}
     settle(id);save();
     if(!visible(date))cursor=mode==='month'?new Date(parse(date).getFullYear(),parse(date).getMonth(),1):parse(date);
     close();render();
   });
+
+  // Мост для модуля Firestore ниже
+  window.PLANER={
+    legacy,
+    connect(events){remote={};events.forEach(e=>{remote[e.id]=e});dirty.clear();if(sheet.hidden)render();else pending=true},
+    disconnect(){remote=null;render()},
+  };
+  let pending=false;
+  new MutationObserver(()=>{if(sheet.hidden&&pending){pending=false;render()}}).observe(sheet,{attributes:true,attributeFilter:['hidden']});
 })();
+</script>
+
+<div class="sheet" id="loginSheet" hidden>
+  <form id="loginForm" novalidate>
+    <h2>Вход в облако</h2>
+    <p class="muted" style="font-size:14px">Тот же email и пароль, что в CRM. После входа дела хранятся в облаке: они одинаковые на телефоне и компьютере, и их видит бот-ассистент.</p>
+    <label>Email<input id="l-email" type="email" autocomplete="username" required></label>
+    <label>Пароль<input id="l-pass" type="password" autocomplete="current-password" required></label>
+    <p class="err" id="l-err" hidden></p>
+    <div class="acts"><button class="btn" type="submit" id="l-submit">Войти</button><button class="btn ghost" type="button" id="l-cancel">Отмена</button></div>
+  </form>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDocs, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+
+  // Тот же проект Firebase, что у CRM и бота: дела лежат в коллекции planner_events.
+  const app = initializeApp({
+    apiKey: "AIzaSyBgRnmZiIvax7jraueM-nOPRgIZm0vkpL8",
+    authDomain: "crm-orders-a794f.firebaseapp.com",
+    projectId: "crm-orders-a794f",
+    storageBucket: "crm-orders-a794f.firebasestorage.app",
+    messagingSenderId: "371822045791",
+    appId: "1:371822045791:web:0a949bf6daf5345a15c9ea"
+  });
+  const db = getFirestore(app), auth = getAuth(app);
+  const COL = collection(db, "planner_events");
+  const $ = id => document.getElementById(id);
+  const btn = $("syncBtn"), sheet = $("loginSheet"), note = document.querySelector(".sync-note");
+  const pad = n => String(n).padStart(2, "0");
+  const toMin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ""); return m ? +m[1] * 60 + +m[2] : null; };
+  const hm = m => pad(Math.floor(m / 60)) + ":" + pad(m % 60);
+  const docId = e => e._doc || encodeURIComponent(e.id);
+  let unsub = null;
+
+  function setStatus(text, title) { btn.textContent = text; btn.title = title || ""; }
+
+  // Документ Firestore → дело планера. Бот может прислать дело без времени: ставим 09:00 на час.
+  function fromDoc(d) {
+    const x = d.data();
+    if (!x.date) return null;
+    let s = toMin(x.s), e = toMin(x.e);
+    if (s == null) s = 9 * 60;
+    if (e == null || e <= s) e = Math.min(s + 60, 1440);
+    return { ...x, id: x.id || d.id, _doc: d.id, s: hm(s), e: hm(e), title: x.title || "Без названия",
+             meta: x.meta || "", type: x.type || "work", d: !!x.d };
+  }
+
+  async function writeAll(events, extra) {
+    for (let i = 0; i < events.length; i += 400) {
+      const b = writeBatch(db);
+      events.slice(i, i + 400).forEach(e => {
+        const { _doc, ...data } = e;
+        Object.keys(data).forEach(k => data[k] === undefined && delete data[k]);
+        b.set(doc(COL, docId(e)), { ...data, ...extra(e), updatedAt: Date.now() }, { merge: true });
+      });
+      await b.commit();
+    }
+  }
+
+  window.PLANER_DB = {
+    push(events) {
+      writeAll(events, e => e.source ? {} : { source: "planer", createdAt: Date.now() })
+        .catch(err => { console.error(err); setStatus("⚠ Не сохранено", "Ошибка записи: " + err.code); });
+    }
+  };
+
+  // Первый вход: переносим дела из этого браузера в облако, если там ещё нет дел планера.
+  async function migrateOnce() {
+    const flag = "planner-fs-migrated:" + auth.currentUser.uid;
+    if (localStorage.getItem(flag)) return;
+    const snap = await getDocs(COL);
+    const hasPlaner = snap.docs.some(d => d.data().source === "planer");
+    if (!hasPlaner) {
+      const events = window.PLANER.legacy();
+      setStatus("Переношу дела…");
+      await writeAll(events, () => ({ source: "planer", createdAt: Date.now() }));
+    }
+    localStorage.setItem(flag, "1");
+  }
+
+  onAuthStateChanged(auth, async user => {
+    if (unsub) { unsub(); unsub = null; }
+    if (!user) {
+      window.PLANER.disconnect();
+      setStatus("Войти", "Войти, чтобы дела хранились в облаке и их видел бот");
+      if (note) note.textContent = "Изменения сохраняются только в этом браузере. Войдите, чтобы хранить их в облаке.";
+      return;
+    }
+    try {
+      await migrateOnce();
+    } catch (err) {
+      console.error(err);
+      setStatus("⚠ Нет доступа", "Firestore не пустил: " + err.code + ". Проверьте правила доступа.");
+      return;
+    }
+    unsub = onSnapshot(COL, snap => {
+      window.PLANER.connect(snap.docs.map(fromDoc).filter(Boolean));
+      setStatus("☁ В облаке", user.email + " · нажмите, чтобы выйти");
+      if (note) note.textContent = "Изменения сохраняются в облаке.";
+    }, err => {
+      console.error(err);
+      setStatus("⚠ Нет доступа", "Firestore не пустил: " + err.code);
+    });
+  });
+
+  btn.addEventListener("click", () => {
+    if (auth.currentUser) { if (confirm("Выйти из облака? Планер покажет дела, сохранённые в этом браузере.")) signOut(auth); return; }
+    $("l-err").hidden = true; sheet.hidden = false; $("l-email").focus();
+  });
+  $("l-cancel").addEventListener("click", () => { sheet.hidden = true; });
+  sheet.addEventListener("click", e => { if (e.target === sheet) sheet.hidden = true; });
+  $("loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const b = $("l-submit"); b.disabled = true; b.textContent = "Вход…";
+    try {
+      await signInWithEmailAndPassword(auth, $("l-email").value.trim(), $("l-pass").value);
+      sheet.hidden = true; $("l-pass").value = "";
+    } catch (err) {
+      const msgs = { "auth/invalid-credential": "Неверный email или пароль", "auth/invalid-email": "Неверный email",
+                     "auth/too-many-requests": "Слишком много попыток, подождите минуту" };
+      $("l-err").textContent = msgs[err.code] || "Ошибка входа: " + err.code; $("l-err").hidden = false;
+    }
+    b.disabled = false; b.textContent = "Войти";
+  });
 </script>
 
 </html>
