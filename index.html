@@ -627,13 +627,13 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     </select></label>
     <p class="err" id="f-err" hidden></p>
     <div class="acts"><button class="btn" type="submit" id="f-submit">Добавить</button><button class="btn ghost" type="button" id="f-cancel">Отмена</button><button class="btn ghost danger" type="button" id="f-delete" hidden>Удалить</button></div>
-    <p class="muted" style="font-size:12px">Изменения сохраняются только в этом браузере.</p>
+    <p class="muted" style="font-size:12px">Изменения сохраняются в облаке, если ты вошёл.</p>
   </form>
 </div>
 
 <script>
-(function(){
-  const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+window.__startPlanner=function(){
+  const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}if(window.__cloudSet)window.__cloudSet(k,v)}};
   let H0=9,H1=23;
   const MIG=[[0, "2026-10-18|11:00|Записать все услуги и выбрать главную"], [1, "2026-10-18|13:00|Сколько клиентов нужно для 150 000 ₽"], [2, "2026-10-18|15:00|Прогулка у моря с женой"], [3, "2026-10-18|20:00|План недели"], [4, "2026-10-19|09:00|Сайт-портфолио и первые отклики"], [5, "2026-10-19|11:00|Пылесос: достать болт из резьбы"], [6, "2026-10-19|13:00|Холодные рассылки"], [7, "2026-10-19|15:00|Тема первой карусели и рилса"], [8, "2026-10-19|18:00|Турники"], [9, "2026-10-20|09:00|Холодные рассылки"], [10, "2026-10-20|11:30|Обед, прогулка"], [11, "2026-10-20|12:30|Рассылка друзьям во ВК"], [12, "2026-10-20|15:00|Оформить Instagram"], [13, "2026-10-21|09:00|Рассылка по Санкт-Петербургу"], [14, "2026-10-21|10:30|Подготовка к встрече"], [15, "2026-10-21|11:00|Дорога в центр"], [16, "2026-10-21|11:30|Встреча в центре"], [17, "2026-10-21|12:30|Дорога домой"], [18, "2026-10-21|13:00|Обед, ответы на отклики"], [19, "2026-10-21|14:00|Отклики на вакансии"], [20, "2026-10-21|15:30|Первый рилс"], [21, "2026-10-21|18:00|Турники"], [22, "2026-10-22|09:30|Подготовка к рассылке"], [23, "2026-10-22|10:00|Клининг Питера: 20 сообщений"], [24, "2026-10-22|12:00|Обед"], [25, "2026-10-22|13:00|Ответы и отклики"], [26, "2026-10-22|14:00|Первый рилс"], [27, "2026-10-22|15:00|Проверка ответов"], [28, "2026-10-22|18:00|Турники"], [29, "2026-10-23|09:30|Ответы на рассылку"], [30, "2026-10-23|10:00|Рассылка и дела"], [31, "2026-10-23|12:00|Обед"], [32, "2026-10-23|14:30|Пост-кейс CRM «Вода» в ВК"], [33, "2026-10-23|15:30|Карусель в Instagram"], [34, "2026-10-23|18:00|Турники"], [35, "2026-10-23|19:00|Итоги недели"], [36, "2026-10-24|11:00|Море с женой"], [37, "2026-10-25|12:00|Море, отдых"], [38, "2026-10-25|19:00|План на следующую неделю"], [39, "2026-10-26|12:00|Рассылка клинингу Питера"], [40, "2026-10-26|13:00|Обед, прогулка"], [41, "2026-10-26|14:00|Ответы на рассылку"], [42, "2026-10-26|14:30|Повтор молчащим"], [43, "2026-10-26|15:00|Карусель-лайфстайл в Instagram"], [44, "2026-10-26|16:00|Сайт химчистки: старт по гайду"], [45, "2026-10-26|19:00|Тренировка"], [46, "2026-10-26|19:45|Ужин"], [47, "2026-10-26|20:30|ИИ-агент для планера: что он должен делать"], [48, "2026-10-26|21:30|YouTube вместо сериала"], [49, "2026-10-27|12:00|Рассылка клинингу Питера"], [50, "2026-10-27|13:00|Обед, прогулка"], [51, "2026-10-27|14:00|Пылесос: решить с болтом"], [52, "2026-10-27|15:00|Ответы на рассылку"], [53, "2026-10-27|16:00|CRM: интеграция с Telegram"], [54, "2026-10-27|19:00|Ужин"], [55, "2026-10-27|20:00|Английский с женой"], [56, "2026-10-27|20:30|Higgsfield: реалистичные фото"], [57, "2026-10-27|21:30|YouTube вместо сериала"]];
   const ICON={sales:'i-send',blog:'i-play',work:'i-laptop',life:'i-leaf'};
@@ -1249,7 +1249,107 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
     if(!visible(date))cursor=mode==='month'?new Date(parse(date).getFullYear(),parse(date).getMonth(),1):parse(date);
     close();render();
   });
-})();
+};
 </script>
+
+<!-- Firebase: вход через Google и хранение данных планера в Firestore (users/{uid}). -->
+<style>
+.gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--bg);padding:16px}
+.gate[hidden]{display:none}
+.gate .box{max-width:360px;text-align:center;display:grid;gap:14px}
+.gate h2{margin:0;font-size:24px;letter-spacing:-.02em}
+.sync{display:flex;flex-direction:column;gap:6px;padding-inline:12px;font-size:12px;color:var(--side-muted)}
+.sync button{background:none;border:0;padding:0;color:var(--side-ink);text-decoration:underline;cursor:pointer;text-align:left;font-size:12px}
+</style>
+<div class="gate" id="gate" hidden>
+  <div class="box">
+    <h2>Мой планер</h2>
+    <p class="muted" id="gateText">Войди, чтобы открыть планер. Данные хранятся в облаке и видны на всех твоих устройствах.</p>
+    <button class="btn" type="button" id="gateBtn">Войти через Google</button>
+  </div>
+</div>
+<script type="module">
+// Вставь сюда объект firebaseConfig из Firebase Console → Project settings → Your apps.
+const firebaseConfig = {
+  apiKey: "AIzaSyA5WfcGNi0pIACUoizI4DjsMOVoeFxU8lg",
+  authDomain: "planer-da5eb.firebaseapp.com",
+  projectId: "planer-da5eb",
+  storageBucket: "planer-da5eb.firebasestorage.app",
+  messagingSenderId: "287733158812",
+  appId: "1:287733158812:web:4747fdb931653e2346ae59"
+};
+
+// Ключи localStorage, которые относятся к планеру и синхронизируются.
+const SYNC = /^(planner-custom|planner-ov|planner-mig1|ev-|cb-|book-notes-|books-custom|earned$)/;
+const start = () => { if (!window.__plannerStarted) { window.__plannerStarted = true; window.__startPlanner(); } };
+
+if (firebaseConfig.apiKey.startsWith("PASTE")) {
+  start(); // Firebase ещё не настроен: работаем как раньше, только в браузере.
+} else {
+  const V = "10.12.2";
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+  const { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } =
+    await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+  const { getFirestore, doc, getDoc, setDoc } =
+    await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app), db = getFirestore(app);
+  const gate = document.getElementById("gate"), gateBtn = document.getElementById("gateBtn"), gateText = document.getElementById("gateText");
+  const ls = { get: k => { try { return localStorage.getItem(k) } catch (e) { return null } },
+               set: (k, v) => { try { localStorage.setItem(k, v) } catch (e) {} } };
+  const localKV = () => { const o = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (SYNC.test(k)) o[k] = localStorage.getItem(k) } } catch (e) {} return o };
+
+  gateBtn.addEventListener("click", () => {
+    const p = new GoogleAuthProvider();
+    signInWithPopup(auth, p).catch(e => {
+      if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") signInWithRedirect(auth, p);
+      else { gateText.textContent = "Не получилось войти: " + e.code; }
+    });
+  });
+
+  let ref = null, pending = {}, timer = null;
+  const flush = () => {
+    timer = null; if (!ref || !Object.keys(pending).length) return;
+    const kv = pending; pending = {};
+    setDoc(ref, { kv, updatedAt: Date.now() }, { merge: true }).catch(e => { console.error(e); Object.assign(pending, kv, pending) });
+  };
+  window.__cloudSet = (k, v) => { if (!SYNC.test(k)) return; pending[k] = v; clearTimeout(timer); timer = setTimeout(flush, 600) };
+  addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush() });
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) { ref = null; gate.hidden = false; return; }
+    if (window.__plannerStarted) return;
+    gateText.textContent = "Загружаю данные…"; gateBtn.hidden = true; gate.hidden = false;
+    ref = doc(db, "users", user.uid);
+    try {
+      const snap = await getDoc(ref);
+      const remote = snap.exists() ? (snap.data().kv || {}) : null;
+      if (remote) {
+        Object.entries(remote).forEach(([k, v]) => ls.set(k, v));
+      } else {
+        // Первый вход: переносим в облако всё, что уже накоплено в этом браузере.
+        await setDoc(ref, { kv: localKV(), email: user.email || null, updatedAt: Date.now() });
+      }
+    } catch (e) {
+      console.error(e);
+      gateText.textContent = "Нет доступа к базе (" + (e.code || e.message) + "). Открываю локальную копию.";
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    gate.hidden = true;
+    const foot = document.querySelector(".side .foot");
+    if (foot) {
+      const box = document.createElement("div"); box.className = "sync";
+      box.innerHTML = '<span>Синхронизация: <b></b></span><button type="button">Выйти</button>';
+      box.querySelector("b").textContent = user.email || "включена";
+      box.querySelector("button").addEventListener("click", async () => { flush(); await signOut(auth); location.reload() });
+      foot.before(box);
+    }
+    start();
+  });
+}
+</script>
+
 
 </html>
